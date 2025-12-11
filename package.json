@@ -1,0 +1,45 @@
+{
+  "name": "rn-macos-child-process",
+  "version": "0.0.2",
+  "description": "React Native macOS child process module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "react-native": "lib/index.js",
+  "files": [
+    "src",
+    "macos",
+    "*.podspec",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "tsc || exit 0;",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf lib",
+    "lint": "eslint \"**/*.{js,ts,tsx}\" --fix",
+    "typescript": "tsc"
+  },
+  "keywords": [
+    "react-native",
+    "macos",
+    "child-process"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-repo/rn-macos-child-process.git"
+  },
+  "author": "Your Name <you@example.com>",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-macos": "*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.03",
+    "typescript": "^5.8.3",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "react": "19.1.1",
+    "react-native": "0.82.0"
+  }
+}
