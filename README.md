@@ -1,17 +1,3 @@
-Below is a **complete professional README.md** for your package, including:
-
-✔ Installation
-✔ Linking
-✔ API docs (using the exact types you provided)
-✔ Event system
-✔ Usage examples (simple + full streaming demo)
-✔ Error handling
-✔ Package structure
-
-You can paste this directly as your library’s `README.md`.
-
----
-
 # 📦 react-native-macos-process
 
 A **native macOS terminal/command execution module** for React Native macOS.
