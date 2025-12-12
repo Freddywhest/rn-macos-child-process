@@ -92,7 +92,7 @@ Same as above but provides more configuration:
 ```ts
 const result = await Process.executeWithOptions("ls", ["-la"], {
   cwd: "/Users/me",
-  env: { CUSTOM_VAR: "1" }
+  env: { CUSTOM_VAR: "1", envPaths: ['/Users/username/Library/Application Support/Herd/config/nvm/versions/node/v22.18.0/bin', 'another'] }
 });
 ```
 
