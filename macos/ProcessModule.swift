@@ -13,8 +13,7 @@ class ProcessModule: RCTEventEmitter {
     private let defaultWhitelist: Set<String> = [
         "ls", "pwd", "cat", "echo", "git", "node", "npm", "yarn", "python3", "swift",
         "which", "brew", "rm", "cp", "mv", "mkdir", "rmdir", "chmod", "chown", "php", "node", "npm",
-        "composer",
-        "npx",
+        "composer", "npx",
     ]
 
     // MARK: - Supported events
@@ -233,28 +232,49 @@ class ProcessModule: RCTEventEmitter {
                         "cwd": cwd ?? "", "type": "process-exit", "command": commandString,
                     ])
 
+                // DispatchQueue.main.async {
+                //   if p.terminationStatus == 0 {
+                //        resolve([
+                //            "pid": pid,
+                //            "code": p.terminationStatus,
+                //            "stdout": fullStdout,
+                //            "stderr": collectedStderr,
+                //            "cwd": cwd ?? ""
+                //        ])
+                //    } else {
+                //        reject(
+                //            "PROCESS_ERROR",
+                //            collectedStderr.trimmingCharacters(in: .whitespacesAndNewlines),
+                //            nil
+                //        )
+                //    }
+                // }
+
                 DispatchQueue.main.async {
-                  if p.terminationStatus == 0 {
-                       resolve([
-                           "pid": pid,
-                           "code": p.terminationStatus,
-                           "stdout": fullStdout,
-                           "stderr": collectedStderr,
-                           "cwd": cwd ?? ""
-                       ])
-                   } else {
-                       reject(
-                           "PROCESS_ERROR",
-                           collectedStderr.trimmingCharacters(in: .whitespacesAndNewlines),
-                           nil
-                       )
-                   }
-//                    resolve([
-//                        "pid": pid,
-//                        "code": p.terminationStatus,
-//                        "stdout": fullStdout,
-//                        "cwd": cwd ?? "",
-//                    ])
+                    let result: [String: Any] = [
+                        "pid": pid,
+                        "code": p.terminationStatus,
+                        "stdout": fullStdout,
+                        "stderr": collectedStderr,
+                        "cwd": cwd ?? ""
+                    ]
+                    
+                    if p.terminationStatus == 0 {
+                        resolve(result)
+                    } else {
+                        // Convert the dictionary → JSON string for reject()
+                        if let jsonData = try? JSONSerialization.data(withJSONObject: result, options: []),
+                        let jsonString = String(data: jsonData, encoding: .utf8) {
+                            
+                            reject(
+                                "PROCESS_ERROR",
+                                jsonString,
+                                nil
+                            )
+                        } else {
+                            reject("PROCESS_ERROR", "Command execution failed with exit code: \(p.terminationStatus)", nil)
+                        }
+                    }
                 }
             }
         }
