@@ -31,9 +31,14 @@ class ProcessModule: RCTEventEmitter {
     static override func requiresMainQueueSetup() -> Bool { false }
 
     // MARK: - Helpers
-    private func defaultEnvironment(merging extra: [String: String]?) -> [String: String] {
+    private func defaultEnvironment(merging extra: [String: String]?, extraPaths: [String] = []) -> [String: String] {
       var env = ProcessInfo.processInfo.environment
-      env["PATH"] =  "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/Users/\(NSUserName())/Library/Application Support/Herd/config/nvm/versions/node/v22.18.0/bin:/Users/\(NSUserName())/Library/Application Support/Herd/bin/"
+      env["PATH"] =  "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/Users/\(NSUserName())/Library/Application Support/Herd/bin/"
+        if !extraPaths.isEmpty {
+            let currentPath = env["PATH"] ?? ""
+            let additionalPath = extraPaths.joined(separator: ":")
+            env["PATH"] = additionalPath + ":" + currentPath
+        }
         extra?.forEach { env[$0.key] = $0.value }
         return env
     }
@@ -73,6 +78,7 @@ class ProcessModule: RCTEventEmitter {
             let envExtra = opts["env"] as? [String: String]
             let timeoutSec = opts["timeout"] as? Double
             let allowUnsafe = opts["allowUnsafe"] as? Bool ?? false
+            let extraEnvPaths = opts["envPaths"] as? [String] ?? []
 
             // Whitelist check
             if !allowUnsafe {
@@ -91,7 +97,7 @@ class ProcessModule: RCTEventEmitter {
             let stderrPipe = Pipe()
             process.standardOutput = stdoutPipe
             process.standardError = stderrPipe
-            process.environment = self.defaultEnvironment(merging: envExtra)
+            process.environment = self.defaultEnvironment(merging: envExtra, extraPaths: extraEnvPaths)
 
             let commandString = self.makeBashCommand(command: command, arguments: arguments)
 
