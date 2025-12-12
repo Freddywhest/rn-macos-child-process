@@ -228,8 +228,7 @@ class ProcessModule: RCTEventEmitter {
                 self.sendEvent(
                     withName: "process-exit",
                     body: [
-                        "pid": pid, "code": p.terminationStatus, "stdout": fullStdout,
-                        "cwd": cwd ?? "", "type": "process-exit", "command": commandString,
+                        "pid": pid, "code": p.terminationStatus, "stdout": fullStdout, "cwd": cwd ?? "", "type": "process-exit", "command": commandString,
                     ])
 
                 // DispatchQueue.main.async {
