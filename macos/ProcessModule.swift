@@ -16,6 +16,10 @@ class ProcessModule: RCTEventEmitter {
         "composer", "npx",
     ]
 
+   private  func eventName(_ base: String, _ id: String) -> String {
+        id.isEmpty ? base : "\(base)-\(id)"
+    }
+
     // MARK: - Supported events
     override func supportedEvents() -> [String]? {
         return [
@@ -73,12 +77,19 @@ class ProcessModule: RCTEventEmitter {
         rejecter reject: @escaping RCTPromiseRejectBlock
     ) {
         DispatchQueue.global(qos: .userInitiated).async {
-            let opts = options ?? [:]
+            let opts: [String: Any] = options ?? [:]
             let cwd = opts["cwd"] as? String
             let envExtra = opts["env"] as? [String: String]
             let timeoutSec = opts["timeout"] as? Double
             let allowUnsafe = opts["allowUnsafe"] as? Bool ?? false
             let extraEnvPaths = opts["envPaths"] as? [String] ?? []
+            let identifier = opts["identifier"] as? String ?? ""
+
+            let eventNameProcessStart  = self.eventName("process-start", identifier)
+            let eventNameProcessStdOut = self.eventName("process-stdout", identifier)
+            let eventNameProcessStdErr = self.eventName("process-stderr", identifier)
+            let eventNameProcessExit   = self.eventName("process-exit", identifier)
+            let eventNameProcessError = self.eventName("process-error", identifier)
 
             // Whitelist check
             if !allowUnsafe {
@@ -156,9 +167,13 @@ class ProcessModule: RCTEventEmitter {
 
             // Notify start
             self.sendEvent(
-                withName: "process-start",
+                withName: eventNameProcessStart,
                 body: [
-                    "pid": pid, "cwd": cwd ?? "", "command": commandString, "type": "process-start",
+                    "pid": pid, 
+                    "cwd": cwd ?? "", 
+                    "command": commandString, 
+                    "type": "start", 
+                    "identifier": identifier
                 ])
 
             // Collect stdout/stderr
@@ -173,10 +188,14 @@ class ProcessModule: RCTEventEmitter {
                 if data.count > 0, let s = String(data: data, encoding: .utf8) {
                     fullStdout += s
                     self.sendEvent(
-                        withName: "process-stdout",
+                        withName: eventNameProcessStdOut,
                         body: [
-                            "pid": pid, "data": s, "cwd": cwd ?? "", "type": "process-stdout",
+                            "pid": pid, 
+                            "data": s, 
+                            "cwd": cwd ?? "", 
+                            "type": "stdout",
                             "command": commandString,
+                            "identifier": identifier
                         ])
                 }
             }
@@ -188,13 +207,14 @@ class ProcessModule: RCTEventEmitter {
                  collectedStderr += chunk
 
                  self.sendEvent(
-                     withName: "process-stderr",
+                     withName: eventNameProcessStdErr,
                      body: [
                          "type": "stderr",
                          "data": chunk,
                          "pid": process.processIdentifier,
                          "command": commandString,
-                         "cwd": cwd ?? ""
+                         "cwd": cwd ?? "",
+                         "identifier": identifier
                      ]
                  )
              }
@@ -208,10 +228,14 @@ class ProcessModule: RCTEventEmitter {
                         if let p = self.processes[pid] { p.terminate() }
                     }
                     self.sendEvent(
-                        withName: "process-error",
+                        withName: eventNameProcessError,
                         body: [
-                            "pid": pid, "error": "timeout", "type": "process-error-timeout",
-                            "command": commandString, "cwd": cwd ?? "",
+                            "pid": pid, 
+                            "data": "Timeout after \(t) seconds", 
+                            "type": "error-timeout",
+                            "command": commandString, 
+                            "cwd": cwd ?? "", 
+                            "identifier": identifier
                         ])
                 }
                 timeoutWorkItem = item
@@ -232,9 +256,15 @@ class ProcessModule: RCTEventEmitter {
                 self.processesQueue.sync { self.processes.removeValue(forKey: pid) }
 
                 self.sendEvent(
-                    withName: "process-exit",
+                    withName: eventNameProcessExit,
                     body: [
-                        "pid": pid, "code": p.terminationStatus, "stdout": fullStdout, "cwd": cwd ?? "", "type": "process-exit", "command": commandString,
+                        "pid": pid, 
+                        "code": p.terminationStatus, 
+                        "stdout": fullStdout, 
+                        "cwd": cwd ?? "", 
+                        "type": "exit", 
+                        "command": commandString, 
+                        "identifier": identifier
                     ])
 
                 // DispatchQueue.main.async {
@@ -261,7 +291,9 @@ class ProcessModule: RCTEventEmitter {
                         "code": p.terminationStatus,
                         "stdout": fullStdout,
                         "stderr": collectedStderr,
-                        "cwd": cwd ?? ""
+                        "cwd": cwd ?? "",
+                        "command": commandString,
+                        "identifier": identifier
                     ]
                     
                     if p.terminationStatus == 0 {
