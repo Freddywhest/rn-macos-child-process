@@ -39,5 +39,53 @@ RCT_EXTERN_METHOD(getSystemInfo : (RCTPromiseResolveBlock)
 RCT_EXTERN_METHOD(killProcess : (NSInteger)pid signal : (NSInteger)
                       signal resolver : (RCTPromiseResolveBlock)
                           resolve rejecter : (RCTPromiseRejectBlock)reject)
+                        
+// MARK: - File System Bridge
+
+RCT_EXTERN_METHOD(readFile : (NSString *)path
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(writeFile : (NSString *)path
+                  content : (NSString *)content
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(deleteFile : (NSString *)path
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(exists : (NSString *)path
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(createDirectory : (NSString *)path
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(listDirectory : (NSString *)path
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+// MARK: - Advanced File System Bridge
+
+RCT_EXTERN_METHOD(appendToFile : (NSString *)path
+                    content : (NSString *)content
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(moveFile : (NSString *)fromPath
+                toPath : (NSString *)toPath
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(copyFile : (NSString *)fromPath
+                toPath : (NSString *)toPath
+                    resolver : (RCTPromiseResolveBlock)resolve
+                    rejecter : (RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(listDirectoryItems:(NSString *)path
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
 
 @end

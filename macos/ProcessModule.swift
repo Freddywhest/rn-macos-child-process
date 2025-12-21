@@ -16,8 +16,9 @@ class ProcessModule: RCTEventEmitter {
         "composer", "npx",
     ]
 
-   private  func eventName(_ base: String, _ id: String) -> String {
-        id.isEmpty ? base : "\(base)-\(id)"
+    private  func eventName(_ base: String, _ id: String) -> String {
+        // Removed identifier suffixing for simplicity
+        return !id.isEmpty ? base : base
     }
 
     // MARK: - Supported events
@@ -125,24 +126,6 @@ class ProcessModule: RCTEventEmitter {
             }
 
             process.executableURL = URL(fileURLWithPath: "/bin/bash")
-//            let bashCommand: String
-//            if let cwd = cwd, !cwd.isEmpty {
-//                let escCwd = self.escapeSingleQuotes(cwd)
-//                bashCommand = """
-//                cd '\(escCwd)' && \
-//                [ -f ~/.bash_profile ] && source ~/.bash_profile; \
-//                [ -f ~/.zshrc ] && source ~/.zshrc; \
-//                [ -f ~/.bashrc ] && source ~/.bashrc; \
-//                \(commandString)
-//                """
-//            } else {
-//                bashCommand = """
-//                [ -f ~/.bash_profile ] && source ~/.bash_profile; \
-//                [ -f ~/.zshrc ] && source ~/.zshrc; \
-//                [ -f ~/.bashrc ] && source ~/.bashrc; \
-//                \(commandString)
-//                """
-//            }
           
             let bashCommand: String
             if let cwd = cwd, !cwd.isEmpty {
@@ -173,7 +156,8 @@ class ProcessModule: RCTEventEmitter {
                     "cwd": cwd ?? "", 
                     "command": commandString, 
                     "type": "start", 
-                    "identifier": identifier
+                    "identifier": identifier,
+                    "timestamp": Date().timeIntervalSince1970
                 ])
 
             // Collect stdout/stderr
@@ -195,7 +179,8 @@ class ProcessModule: RCTEventEmitter {
                             "cwd": cwd ?? "", 
                             "type": "stdout",
                             "command": commandString,
-                            "identifier": identifier
+                            "identifier": identifier,
+                            "timestamp": Date().timeIntervalSince1970
                         ])
                 }
             }
@@ -214,7 +199,8 @@ class ProcessModule: RCTEventEmitter {
                          "pid": process.processIdentifier,
                          "command": commandString,
                          "cwd": cwd ?? "",
-                         "identifier": identifier
+                         "identifier": identifier,
+                         "timestamp": Date().timeIntervalSince1970
                      ]
                  )
              }
@@ -235,7 +221,8 @@ class ProcessModule: RCTEventEmitter {
                             "type": "error-timeout",
                             "command": commandString, 
                             "cwd": cwd ?? "", 
-                            "identifier": identifier
+                            "identifier": identifier,
+                            "timestamp": Date().timeIntervalSince1970
                         ])
                 }
                 timeoutWorkItem = item
@@ -264,26 +251,9 @@ class ProcessModule: RCTEventEmitter {
                         "cwd": cwd ?? "", 
                         "type": "exit", 
                         "command": commandString, 
-                        "identifier": identifier
+                        "identifier": identifier,
+                        "timestamp": Date().timeIntervalSince1970
                     ])
-
-                // DispatchQueue.main.async {
-                //   if p.terminationStatus == 0 {
-                //        resolve([
-                //            "pid": pid,
-                //            "code": p.terminationStatus,
-                //            "stdout": fullStdout,
-                //            "stderr": collectedStderr,
-                //            "cwd": cwd ?? ""
-                //        ])
-                //    } else {
-                //        reject(
-                //            "PROCESS_ERROR",
-                //            collectedStderr.trimmingCharacters(in: .whitespacesAndNewlines),
-                //            nil
-                //        )
-                //    }
-                // }
 
                 DispatchQueue.main.async {
                     let result: [String: Any] = [
@@ -293,7 +263,8 @@ class ProcessModule: RCTEventEmitter {
                         "stderr": collectedStderr,
                         "cwd": cwd ?? "",
                         "command": commandString,
-                        "identifier": identifier
+                        "identifier": identifier,
+                        "timestamp": Date().timeIntervalSince1970
                     ]
                     
                     if p.terminationStatus == 0 {
@@ -423,4 +394,205 @@ class ProcessModule: RCTEventEmitter {
         ]
         resolve(info)
     }
+
+    @objc
+    func readFile(_ path: String,
+                  resolver resolve: @escaping RCTPromiseResolveBlock,
+                  rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let data = try String(contentsOfFile: path, encoding: .utf8)
+                DispatchQueue.main.async { resolve(data) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("READ_ERROR", "Failed to read file at \(path): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+    @objc
+    func writeFile(_ path: String, content: String,
+                   resolver resolve: @escaping RCTPromiseResolveBlock,
+                   rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try content.write(toFile: path, atomically: true, encoding: .utf8)
+                DispatchQueue.main.async { resolve(["success": true, "path": path]) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("WRITE_ERROR", "Failed to write file at \(path): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+    @objc
+    func deleteFile(_ path: String,
+                    resolver resolve: @escaping RCTPromiseResolveBlock,
+                    rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try FileManager.default.removeItem(atPath: path)
+                DispatchQueue.main.async { resolve(["success": true, "path": path]) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("DELETE_ERROR", "Failed to delete file at \(path): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+    @objc
+    func exists(_ path: String,
+                resolver resolve: @escaping RCTPromiseResolveBlock,
+                rejecter reject: @escaping RCTPromiseRejectBlock) {
+        let exists = FileManager.default.fileExists(atPath: path)
+        resolve(["exists": exists, "path": path])
+    }
+
+    @objc
+    func createDirectory(_ path: String,
+                         resolver resolve: @escaping RCTPromiseResolveBlock,
+                         rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true, attributes: nil)
+                DispatchQueue.main.async { resolve(["success": true, "path": path]) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("MKDIR_ERROR", "Failed to create directory at \(path): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+    @objc
+    func listDirectory(_ path: String,
+                       resolver resolve: @escaping RCTPromiseResolveBlock,
+                       rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let items = try FileManager.default.contentsOfDirectory(atPath: path)
+                DispatchQueue.main.async { resolve(["items": items, "path": path]) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("LS_ERROR", "Failed to list directory at \(path): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+     @objc
+    func listDirectoryItems(_ path: String,
+                       resolver resolve: @escaping RCTPromiseResolveBlock,
+                       rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fm = FileManager.default
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
+                DispatchQueue.main.async {
+                    reject("NOT_FOUND", "Directory not found: \(path)", nil)
+                }
+                return
+            }
+
+            do {
+                let contents = try fm.contentsOfDirectory(atPath: path)
+                var result: [[String: Any]] = []
+
+                for item in contents {
+                    let fullPath = (path as NSString).appendingPathComponent(item)
+                    var isDirItem: ObjCBool = false
+                    fm.fileExists(atPath: fullPath, isDirectory: &isDirItem)
+
+                    let attrs = try fm.attributesOfItem(atPath: fullPath)
+                    let fileInfo: [String: Any] = [
+                        "name": item,
+                        "path": fullPath,
+                        "isFile": !isDirItem.boolValue,
+                        "isDirectory": isDirItem.boolValue,
+                        "size": attrs[FileAttributeKey.size] ?? 0,
+                        "mtime": (attrs[FileAttributeKey.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0,
+                        "ctime": (attrs[FileAttributeKey.creationDate] as? Date)?.timeIntervalSince1970 ?? 0,
+                    ]
+                    result.append(fileInfo)
+                }
+
+                DispatchQueue.main.async {
+                    resolve(["path": path, "items": result])
+                }
+
+            } catch {
+                DispatchQueue.main.async {
+                    reject("LIST_ERROR", "Failed to list directory \(path): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+    @objc
+    func appendToFile(_ path: String, content: String,
+                      resolver resolve: @escaping RCTPromiseResolveBlock,
+                      rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let handle = FileHandle(forWritingAtPath: path) {
+                do {
+                    handle.seekToEndOfFile()
+                    if let data = content.data(using: .utf8) {
+                        handle.write(data)
+                    }
+                    handle.closeFile()
+                    DispatchQueue.main.async { resolve(["success": true, "path": path]) }
+                } catch {
+                    DispatchQueue.main.async {
+                        reject("APPEND_ERROR", "Failed to append to file at \(path): \(error.localizedDescription)", error)
+                    }
+                }
+            } else {
+                // File doesn’t exist, create it
+                do {
+                    try content.write(toFile: path, atomically: true, encoding: .utf8)
+                    DispatchQueue.main.async { resolve(["success": true, "path": path]) }
+                } catch {
+                    DispatchQueue.main.async {
+                        reject("APPEND_ERROR", "Failed to create file for appending at \(path): \(error.localizedDescription)", error)
+                    }
+                }
+            }
+        }
+    }
+
+    @objc
+    func moveFile(_ fromPath: String, toPath: String,
+                  resolver resolve: @escaping RCTPromiseResolveBlock,
+                  rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try FileManager.default.moveItem(atPath: fromPath, toPath: toPath)
+                DispatchQueue.main.async { resolve(["success": true, "from": fromPath, "to": toPath]) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("MOVE_ERROR", "Failed to move file from \(fromPath) to \(toPath): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
+    @objc
+    func copyFile(_ fromPath: String, toPath: String,
+                  resolver resolve: @escaping RCTPromiseResolveBlock,
+                  rejecter reject: @escaping RCTPromiseRejectBlock) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                try FileManager.default.copyItem(atPath: fromPath, toPath: toPath)
+                DispatchQueue.main.async { resolve(["success": true, "from": fromPath, "to": toPath]) }
+            } catch {
+                DispatchQueue.main.async {
+                    reject("COPY_ERROR", "Failed to copy file from \(fromPath) to \(toPath): \(error.localizedDescription)", error)
+                }
+            }
+        }
+    }
+
 }
